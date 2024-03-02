@@ -242,3 +242,433 @@ WARNING: Set activation/thin_pool_autoextend_threshold below 100 to trigger auto
 Logical volume "tp_demo_lv" created.
 
 ```
+
+# Advanced Filesystems
+
+## BTRFS
+
+Install with:
+
+```
+
+sudo apt-get update
+sudo apt-get install btrfs-progs
+
+
+```
+
+To create a file system:
+
+```
+sudo mkfs.btrfs -d single /dev/sdb
+
+# -d means the user data will not be duplicated
+
+```
+
+Mount with:
+
+```
+
+sudo mount /dev/sdb /data
+
+
+```
+
+Check usage with:
+
+```
+
+sudo btrfs device usage /data
+
+/dev/sdb, ID: 1
+   Device size:             5.00GiB
+   Device slack:              0.00B
+   Data,single:             8.00MiB
+   Metadata,DUP:          512.00MiB
+   System,DUP:             16.00MiB
+   Unallocated:             4.48GiB
+
+```
+
+Add disks:
+
+```
+sudo btrfs device add /dev/sdc /dev/sdd /data
+
+# alternatively 
+sudo btrfs filesystem show /data
+
+```
+
+Rebalance the disks to improve performance:
+
+```
+
+sudo btrfs balance start -d -m /data
+
+Done, had to relocate 3 out of 3 chunks
+
+```
+
+### RAID on BTRFS
+
+Striping: 
+
+```
+sudo btrfs balance start -dconvert=raid1 -mconvert=raid1 /data         
+Done, had to relocate 3 out of 3 chunks
+
+# dconvert --> user data 
+# mconvert --> metadata
+
+```
+
+RAID 10:
+
+```
+sudo btrfs balance start -dconvert=raid10 -mconvert=raid1 /data  
+
+ sudo btrfs device usage /data
+/dev/sdb, ID: 1
+   Device size:             5.00GiB
+   Device slack:              0.00B
+   Data,RAID10/2:           2.00GiB
+   Metadata,RAID1:        256.00MiB
+   System,RAID1:           32.00MiB
+   Unallocated:             2.72GiB
+
+/dev/sdc, ID: 2
+   Device size:             5.00GiB
+   Device slack:              0.00B
+   Data,RAID10/2:           2.00GiB
+   Unallocated:             3.00GiB
+
+/dev/sdd, ID: 3
+   Device size:             5.00GiB
+   Device slack:              0.00B
+   Data,RAID10/2:           2.00GiB
+   Metadata,RAID1:        256.00MiB
+   System,RAID1:           32.00MiB
+   Unallocated:             2.72GiB
+
+```
+
+Subvolumes:
+
+```
+sudo btrfs subvolume create /data/svol
+
+# Create a mountpoint 
+sudo mkdir -p /data/subvolume
+
+# And mount it there
+sudo mount -o subvolid=<ID> /dev/sdb /data/svol
+
+```
+
+## ZFS
+
+Install
+
+```
+
+sudo apt-get install software-properties-common
+sudo apt-add-repository contrib
+
+sudo apt-get update
+sudo apt-get install zfsutils-linux
+
+
+```
+
+### Striped pool
+
+```
+sudo zpool create zfs-stripe /dev/sdb /dev/sdc
+
+# This will mount the pool in /zfs-stripe folder
+
+# To mount at a custom mount point
+sudo zpool create -m /data zfs-stripe /dev/sdb /dev/sdc
+
+
+```
+
+Status check:
+```
+
+sudo zpool status zfs-stripe
+
+# or
+sudo zfs list
+
+```
+
+### Mirrored pool
+
+```
+
+sudo zpool create -m /storage/zfsm zfs-mirror mirror /dev/sdd /dev/sde
+
+```
+
+To destroy them:
+
+```
+sudo zpool destroy zfs-mirror
+sudo zpool destroy zfs-stripe
+
+```
+
+### RAID5-like pool
+
+```
+
+sudo zpool create -m /storage/zfsr zfs-raidz raidz /dev/sdb /dev/sdc /dev/sdd
+
+```
+
+
+
+# Quotas
+
+Prepare a  partition and a file system
+
+
+```
+# Create the mountpoints
+
+sudo mkdir -p /storage/{ext4,xfs}
+
+```
+
+```
+# Ext4
+sudo parted -s /dev/sdb -- mklabel msdos mkpart primary 2048s -0m set 1
+sudo mkfs.ext4 /dev/sdb1
+
+# XFS
+sudo apt-get install -y xfsprogs
+sudo parted -s /dev/sdc -- mklabel msdos mkpart primary 2048s -0m set 1
+sudo mkfs.xfs -f /dev/sdc1
+
+```
+
+Add them to `/etc/fstab`
+
+```
+
+/dev/sdb1       /storage/ext4   ext4    defaults        0 0
+/dev/sdc1       /storage/xfs    xfs     defaults        0 0
+
+sudo mount -av
+
+```
+
+## Ext4 quotas
+
+Install
+
+```
+sudo apt-get update
+sudo apt-get install quota
+
+```
+
+Edit `/etc/fstab`
+
+```
+
+/dev/sdb1       /storage/ext4   ext4    usrquota        0 0
+
+```
+
+Unmount and mount again:
+
+```
+sudo umount /storage/ext4
+sudo mount -av
+
+```
+
+Check the existing quotas:
+
+```
+
+sudo quotacheck -mu /dev/sdb1
+
+
+```
+
+Enable the quota:
+```
+sudo quotaon /dev/sdb1
+
+```
+
+Inspect:
+
+```
+sudo repquota -uv /dev/sdb1
+*** Report for user quotas on device /dev/sdb1
+Block grace time: 7days; Inode grace time: 7days
+                        Block limits                File limits
+User            used    soft    hard  grace    used  soft  hard  grace
+----------------------------------------------------------------------
+root      --      20       0       0              2     0     0       
+
+Statistics:
+Total blocks: 6
+Data blocks: 1
+Entries: 1
+Used average: 1.000000
+```
+
+
+Add a user to test the quotas on:
+
+```
+sudo useradd -m demo
+sudo passwd demo
+
+```
+
+Set a quota
+
+```
+
+sudo setquota -u demo 20000 25000 0 0 /dev/sdb1
+
+```
+
+Test:
+
+```
+sudo chmod 777 /storage/ext4/
+
+su demo
+
+# Do something stupid:
+dd if=/dev/zero of=/storage/ext4/fill.dat
+
+```
+
+## XFS quotas
+
+
+Edit `/etc/fstab`
+
+```
+
+/dev/sdb1       /storage/ext4   ext4   usrquota,uqnoenforce       0 0
+
+```
+
+Unmount and mount again:
+
+```
+sudo umount /storage/xfs
+sudo mount -av
+
+```
+
+Set a quota:
+
+```
+sudo xfs_quota -xc 'limit -u bsoft=20m bhard=25m demo' /dev/sdc1
+
+```
+
+Test:
+
+```
+sudo chmod 777 /storage/xfs/
+
+su demo
+
+# Do something stupid:
+dd if=/dev/zero of=/storage/ext4/fill.dat
+
+```
+
+## Encryption
+
+Check for the DM_CRYPT module:
+
+```
+grep -i DM_CRYPT /boot/config-$(uname -r)
+```
+
+Check if the module is loaded:
+
+```
+sudo lsmod | grep dm_crypt
+```
+
+Load it with:
+
+```
+sudo modprobe dm_crypt
+```
+
+Install:
+
+```
+sudo apt-get install cryptsetup
+```
+
+Create a partition for encryption:
+
+```
+sudo parted -s /dev/sdd -- mklabel msdos mkpart primary 2048s 1024m set 1
+```
+
+### Encrypt a partition
+
+```
+sudo cryptsetup -y luksFormat /dev/sdd1
+
+```
+
+Answer `YES` and create a passphrase.
+
+Create a file system:
+
+```
+sudo mkfs.xfs /dev/mapper/encr
+
+```
+
+Create a mountpoint and mount it:
+
+```
+sudo mkdir -p /secret
+sudo mount /dev/mapper/encr /secret
+```
+
+Create a secret file:
+
+```
+echo "Super secret file" | sudo tee /secret/secret.txt
+
+```
+
+
+Unmount and close the encrypted device:
+
+```
+sudo umount /secret
+sudo cryptsetup luksClose encr
+```
+
+To use the device again:
+
+```
+# Open
+sudo cryptsetup luksOpen /dev/sdd1 encr
+
+# Mount 
+sudo mount /dev/mapper/encr /secret/
+
+```
