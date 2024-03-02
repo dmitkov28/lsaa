@@ -4,3 +4,7 @@ All labs use Vagrant with Virtualbox to provision the corresponding infrastructu
 
 The distro of choice is Debian 12.
 
+Topics:
+
+- [m1 - Local Storage](m1/) 
+
