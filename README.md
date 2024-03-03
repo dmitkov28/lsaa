@@ -7,4 +7,5 @@ The distro of choice is Debian 12.
 Topics:
 
 - [m1 - Local Storage](m1/) 
+- [m1 - Network & Security](m2/) 
 
