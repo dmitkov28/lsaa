@@ -1,0 +1,34 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+    
+  config.ssh.insert_key = false
+  
+  config.vm.define "machine_1" do |vm1|
+    vm1.vm.box = "shekeriev/debian-12"
+    vm1.vm.hostname = "machine-1"
+    vm1.vm.network "private_network", ip: "192.168.200.100"
+    vm1.vm.provider :virtualbox do |vb|
+      vb.memory = 2048
+    end
+  end
+
+  config.vm.define "machine_2" do |vm2|
+    vm2.vm.box = "shekeriev/debian-12"
+    vm2.vm.hostname = "machine-2"
+    vm2.vm.network "private_network", ip: "192.168.200.101"
+    vm2.vm.provider :virtualbox do |vb|
+      vb.memory = 2048
+    end
+  end
+
+  config.vm.define "machine_3" do |vm3|
+    vm3.vm.box = "shekeriev/debian-12"
+    vm3.vm.hostname = "machine-3"
+    vm3.vm.network "private_network", ip: "192.168.200.102" 
+    vm3.vm.provider :virtualbox do |vb|
+      vb.memory = 2048
+    end
+  end
+end
