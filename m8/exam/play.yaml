@@ -1,0 +1,23 @@
+---
+- name: Configure web servers
+  hosts: web
+  become: yes
+
+  tasks:
+  - name: Install nginx
+    ansible.builtin.apt:
+      name: nginx
+      state: present
+      update_cache: yes
+
+  - name: Enable and start nginx
+    ansible.builtin.service:
+      name: nginx
+      state: started
+      enabled: yes
+      
+  - name: Create custom index page
+    ansible.builtin.copy:
+      dest: /var/www/html/index.html
+      content: "LSAA Exam"
+
