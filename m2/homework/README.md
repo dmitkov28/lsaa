@@ -82,6 +82,14 @@
         sudo ufw route allow in on enp0s9 out on enp0s8
         ```
 
+        Add this to `/etc/ufw/before.rules`
+        ```
+        *nat
+        :POSTROUTING ACCEPT [0:0]
+        -A POSTROUTING -s <private-network.0/24> -o <public-interface> -j MASQUERADE
+        COMMIT
+        ```
+
         Start ufw
         ```
         sudo ufw enable
