@@ -347,6 +347,98 @@ Alternatively, use the CLI script
 /opt/observium/add_device.php <new host ip>
 ```
 
+# Ansible
+
+## Installation
+
+Install using pip
+```
+pip ansible
+```
+
+Install using a package manager
+```
+sudo apt-get update
+sudo apt-get install -y ansible
+```
+
+## Configuration
+
+Config
+```
+$ANSIBLE_CONFIG
+./ansible.cfg # local folder
+~/.ansible.cfg
+/etc/ansible/ansible.cfg
+```
+
+Override by prefixing the name with `$ANSIBLE_<SETTING>`
+
+Inventory (INI style)
+```
+web 192.168.100.100
+db 192.168.100.101
+
+[all]
+web
+db
+
+[servers]
+web
+
+[dbs]
+db
+```
+
+## Playbooks
+
+A simple playbook `apache.yml`
+```
+---
+- name: Install Apache
+  hosts: hosts
+  become: true
+
+  tasks:
+  - name: Install apache
+    apt:
+      name: apache2
+      state: latest
+
+```
+
+Apply with
+```
+ansible-playbook apache.yml -b
+```
+
+## Ansible Roles
+
+Example - Docker role by Jeff Geerling
+```
+ansible-galaxy role install geerlingguy.docker
+```
+
+Usage in a playbook
+```
+---
+- hosts: all
+  roles:
+    - geerlingguy.docker
+  
+  tasks:
+  - name: Add user to docker group
+    user:
+      name: <user>
+      groups: docker
+      append: yes
+```
+
+
+
+
+
+
 
 
 
